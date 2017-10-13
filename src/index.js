@@ -1,6 +1,8 @@
 'use strict';
 import { ZaloSocial } from './ZaloSocial';
+import { ZaloOA } from './ZaloOA';
 
 module.exports = {
-	ZaloSocial: ZaloSocial
+	ZaloSocial: ZaloSocial,
+	ZaloOA: ZaloOA
 }

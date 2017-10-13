@@ -26,20 +26,29 @@ var Zalo = require('zalo-sdk');
 Provides a way for your application to access data on Zalo's platform. Through the HTTP protocol, applications can query user data, friend data, post new information, and more.
 
 To use the Social API, you need to register for the application on Zalo and follow the terms of Zalo. 
-Click [here](https://developers.zalo.me/docs/api/open-api-4) to view document on Zalo.
+Click to view [Zalo Developer Documentation For Open API](https://developers.zalo.me/docs/api/open-api-4).
 
 **Create an instance of the ZaloSocial class**
 ```js
-var Zalo = require('zalo-sdk');
-var ZaloSocial = Zalo.ZaloSocial;
-var config = {
+var ZaloSocial = require('zalo-sdk').ZaloSocial;
+
+var zsConfig = {
 	appId: '1131677296116040198',
 	redirectUri: 'http://localhost/login/zalo-callback',
-	accessToken: 'your access token'
+	secretkey: 'your app secret'
 };
-var ZSClient = new ZaloSocial(config);
+var ZSClient = new ZaloSocial(zsConfig);
 ```
-You can get **Access Token** of your App at [here](https://developers.zalo.me/tools/explorer)
+Before call any API, you must have **Access Token** . You can get **Access Token** by **Oauth Code** and set value of access_token after you initialize ZaloSocial Instance , (access_token will be exipred in 3600s). Click [Social API Document](https://developers.zalo.me/docs/api/social-api/tai-lieu/bat-dau-nhanh-post-1011) to see how to get **Oauth Code** for your App.
+
+```js
+var code = 'Your oauth code';
+ZSClient.getAccessTokenByOauthCode(code, function(response) {
+	if (response && response.access_token) {
+		ZSClient.setAccessToken(response.access_token);
+	}
+});
+```
 
 **Access User Information**
 ```js
@@ -85,15 +94,179 @@ ZSClient.api('me/message', 'POST', {to: '8549377444104328082', message: 'Lorem i
 **Get Login Url**
 ```js
 var loginUrl = ZSClient.getLoginUrl();
-
+Format Login Url: https://oauth.zaloapp.com/v3/auth?app_id={1}&redirect_uri={2}
 ```
+**Login Flow**
+1. Get login URL via  ZSClient.getLoginUrl();
+2. After User login Zalo, Zalo Server will redirect to callback URL of App with OAuth Code and UserId. You can use this code to get Access Token via ZSClient.getAccessTokenByOauthCode(code).
+3. Get User's Profile by userId to verify User.
+
+## Use Official Account Open API
+Provides a way for your application to access data on Zalo's platform. Through the HTTPS protocol, applications can interact with interested people on behalf of the Zalo Official Account.
+
+To use the Official Account Open API you need to create an official account and register as 3rd party and follow the terms of Zalo.
+
+Click to view [Zalo Developer Documentation For Official Account Open API](https://developers.zalo.me/docs/api/official-account-open-api-5).
+
+**Create an instance of the ZaloOA class**
+```js
+var ZaloOA = require('zalo-sdk').ZaloOA;
+
+var zaConfig = {
+	oaid: '2491302944280861639',
+	secretkey: 'your secret key'
+}
+var ZOAClient = new ZaloOA(zaConfig);
+```
+
+**Get Profile Follower**
+```js
+var userId = 'user id or phone number';
+ZOAClient.api('getprofile', { uid: userId }, function(response) {
+	console.log(response);
+})
+```
+**Send Text Message**
+```js
+var userId = 'user id';
+ZOAClient.api('sendmessage/text', 'POST', {uid: userId, message: 'Zalo SDK Nodejs Test Message'}, function(response) {
+	console.log(response);
+})
+```
+**Get Message Status**
+```js
+ZOAClient.api('getmessagestatus', {msgid: 'fdb4c7ad668f37d16e9e'}, function(response) {
+	console.log(response);
+})
+```
+**Upload Image**
+```js
+var fileUrl = 'url of file you want to upload or absolute file path';
+ZOAClient.api('upload/image','POST', {file: fileUrl}, function(response) {
+	console.log(response);
+})
+```
+**Upload Image Gif**
+```js
+var fileUrl = 'url of file you want to upload or absolute file path';
+ZOAClient.api('upload/gif','POST', {file: fileUrl}, function(response) {
+	console.log(response);
+})
+```
+**Send Image Message**
+```js
+ZOAClient.api('sendmessage/image', 'POST', {uid: '', message: 'Zalo SDK Nodejs', 'imageid': ''}, function(response) {
+	console.log(response);
+})
+```
+**Send Gif Message**
+```js
+ZOAClient.api('sendmessage/gif', 'POST', {uid: '', width: '', height: '', 'imageid': ''}, function(response) {
+	console.log(response);
+})
+```
+
+**Send Link Message**
+```js
+var params = {
+	uid: '',
+	links: [{
+		link: 'https://developers.zalo.me/',
+		linktitle: 'Zalo For Developers',
+		linkdes: 'Document For Developers',
+		linkthumb: 'https://developers.zalo.me/web/static/prodution/images/bg.jpg'
+	}]
+}
+ZOAClient.api('sendmessage/links', 'POST', params, function(response) {
+	console.log(response);
+})
+```
+
+**Send Interactive Messages**
+```js
+var params = {
+	uid: '',
+	actionlist: [{
+		action: 'oa.open.inapp',
+		title: 'Send interactive messages',
+		description: 'This is a test for API send interactive messages',
+		thumb: 'https://developers.zalo.me/web/static/prodution/images/bg.jpg',
+		href: 'https://developers.zalo.me',
+		data: 'https://developers.zalo.me',
+		popup: {
+			title: 'Open Website Zalo For Developers',
+			desc: 'Click ok to visit Zalo For Developers and read more Document',
+			ok: 'ok',
+			cancel: 'cancel'
+		}
+	}]
+}
+ZOAClient.api('sendmessage/actionlist', 'POST', params, function(response) {
+	console.log(response);
+})
+```
+**Send A Message Customer Support To The Phone Number**
+```js
+var params = {
+	phone: '',
+	templateid: '',
+	templatedata: {}
+}
+ZOAClient.api('sendmessage/phone/cs', 'POST', params, function(response) {
+	console.log(response);
+})
+```
+**Send A Message Customer Support**
+```js
+var params = {
+	uid: '',
+	templateid: '',
+	templatedata: {}
+}
+ZOAClient.api('sendmessage/cs', 'POST', params, function(response) {
+	console.log(response);
+})
+```
+**Send Sticker**
+```js
+ZOAClient.api('sendmessage/sticker', 'POST', {uid: '', stickerid: ''}, function(response) {
+	console.log(response);
+})
+```
+
+**Reply Text Messages**
+```js
+ZOAClient.api('sendmessage/reply/text', 'POST', {msgid: '', message: ''}, function(response) {
+	console.log(response);
+})
+```
+**Reply Image Messages**
+```js
+ZOAClient.api('sendmessage/reply/image', 'POST', {msgid: '', imageid: '', message: ''}, function(response) {
+	console.log(response);
+})
+```
+**Reply Link Messages**
+```js
+ZOAClient.api('sendmessage/reply/links', 'POST', {msgid: '', links: ''}, function(response) {
+	console.log(response);
+})
+```
+
+**Create QR Code**
+```js
+ZOAClient.api('qrcode', 'POST', {qrdata: '', size: ''}, function(response) {
+	console.log(response);
+})
+```
+
 ## Contributing
 
 Please read [CONTRIBUTING.md](https://gist.github.com/PurpleBooth/b24679402957c63ec426) for details on our code of conduct, and the process for submitting pull requests to us.
 
 ## Versioning
 
-Current version is 1.0.0. We will update more features in next version.
+We will update more features in next version.
 
 ## Authors
 

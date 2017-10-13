@@ -1,0 +1,6 @@
+src/
+
+Thumbs.db
+# WebStrom IDE ignore
+.idea/
+test/

@@ -1,9 +1,11 @@
 'use strict';
 
 import request from 'request';
+import sha256 from 'sha256';
 import { autobind } from 'core-decorators';
 import ZaloApiException from './ZaloApiException';
-
+import fs from 'fs';
+import stream from 'stream';
 
 var { version } = require('../package.json'),
 	METHODS = ['GET', 'POST', 'DELETE', 'PUT'],
@@ -18,10 +20,9 @@ var { version } = require('../package.json'),
 	},
 	defaultOptions = Object.assign(Object.create(null), {
 		Promise: Promise,
-		accessToken: null,
-		appId: null,
-		appSecret: '',
-		version: 'v2.0',
+		oaid: null,
+		secretkey: null,
+		version: 'v1',
 		timeout: null,
 		redirectUri: null,
 		proxy: null,
@@ -48,17 +49,22 @@ var { version } = require('../package.json'),
 	},
 	postParamData = function(params) {
 		var data = {};
-
+		var isFormData = false;
 		for (let key in params) {
 			let value = params[key];
-			if (value && typeof value === 'object') {
-				value = JSON.stringify(value);
+			if (value && typeof value !== 'string') {
+				if (Buffer.isBuffer(value)) {
+					isFormData = true;
+				} else if (typeof value.read === 'function' && typeof value.pipe === 'function' && value.readable) {
+					isFormData = true;
+				} else {
+					value = JSON.stringify(value);
+				}
 			}
 			if (value !== undefined) {
 				data[key] = value;
 			}
 		}
-
 		return data;
 	},
 	nodeifyCallback = function(callback) {
@@ -66,18 +72,39 @@ var { version } = require('../package.json'),
 			if (!res || res.error) return callback(new ZaloApiException(res));
 			callback(null, res);
 		};
+	},
+	loadFile = function(fileUrl, callback) {
+		//Require download
+		if (fileUrl.indexOf('http') != -1) {
+			let s = fileUrl.split('.');
+			let ex = '';
+			if (s && s.length >= 2) ex = s[s.length - 1];
+			let pathFile = __dirname + '/download_' + new Date().getTime() + '.' + ex;
+			let fileData = fs.createWriteStream(pathFile);
+
+			request.head(fileUrl, function(err, res, body) {
+				request(fileUrl).pipe(fileData).on('close', function() {
+					let data = fs.createReadStream(pathFile);
+					fs.unlink(pathFile);
+					return callback(null, data);
+				});
+			});
+		} else {
+			let data = fs.createReadStream(fileUrl);
+			return callback(null, data);
+		}
 	};
 
 const _opts = Symbol('opts');
 const graph = Symbol('graph');
 const oauthRequest = Symbol('oauthRequest');
 
-class ZaloSocial {
+class ZaloOA {
 	constructor(opts, _internalInherit) {
 		_logger.debug('opts: ' + JSON.stringify(opts));
 		_logger.debug('_internalInherit: ' + _internalInherit);
 
-		if (_internalInherit instanceof ZaloSocial) {
+		if (_internalInherit instanceof ZaloOA) {
 			this[_opts] = Object.create(_internalInherit[_opts]);
 		} else {
 			this[_opts] = Object.create(defaultOptions);
@@ -130,7 +157,7 @@ class ZaloSocial {
 			} else if (type === 'object' && !params) {
 				params = next;
 			} else {
-				_logger.info('Invalid argument passed to ZaloSocial.api(): ' + next);
+				_logger.info('Invalid argument passed to ZaloOA.api(): ' + next);
 				return;
 			}
 			next = args.shift();
@@ -139,37 +166,106 @@ class ZaloSocial {
 		method = method || 'GET';
 		params = params || {};
 
+
 		// remove prefix slash if one is given, as it's already in the base url
 		if (path[0] === '/') {
 			path = path.substr(1);
 		}
 
 		if (METHODS.indexOf(method) < 0) {
-			_logger.info('Invalid method passed to ZaloSocial.api(): ' + method);
+			_logger.info('Invalid method passed to ZaloOA.api(): ' + method);
 			return;
 		}
 
-		this[oauthRequest](path, method, params, cb);
+		//Check has contain file upload
+		if (params.file) {
+			let fileUrl = params.file;
+			if (method == 'GET') {
+				_logger.info('Invalid method passed to ZaloOA.api()');
+				return;
+			}
+
+			if (!fileUrl) {
+				_logger.info('Invalid fileUrl passed to ZaloOA.api()');
+				return;
+			}
+			loadFile(fileUrl, (err, data) => {
+				if (err || !data) _logger.info('Cannot read file from url: ' + fileUrl);
+				params.file = data;
+				this[oauthRequest](path, method, params, cb);
+			})
+
+		} else this[oauthRequest](path, method, params, cb);
 	}
 
 	[oauthRequest](path, method, params, cb) {
-		var url, requestOptions, formOptions;
+		var url, requestOptions, formOptions, isMultipart = false;
 		cb = cb || function() {};
-		url = `https://graph.zalo.me/${this.options('version')}/${path}`;
+		url = `https://openapi.zaloapp.com/oa/${this.options('version')}/${path}`;
 
-		if (!params.access_token) params.access_token = this.options('accessToken');
+		//You are not necessary pass these parameter
+		var fieldsReadOnly = ['timestamp', 'mac', 'oaid', 'secretkey'];
+		fieldsReadOnly.map((f) => {
+			if (params && params[f]) {
+				delete params[f];
+			};
+		});
+
+		var timestamp = new Date().getTime();
+
+
 		if (method == 'POST') {
-			formOptions = postParamData(params);
+			let data = {};
+			let mcontent = '';
+
+			//Data for API upload file
+			if (params.file) {
+				data = {
+					timestamp: timestamp,
+					oaid: this.options('oaid'),
+					file: params.file
+				}
+				isMultipart = true;
+				mcontent = data.oaid + data.timestamp + this.options('secretkey');
+			} else {
+				data = {
+					timestamp: timestamp,
+					oaid: this.options('oaid'),
+					data: params
+				}
+				mcontent = data.oaid + JSON.stringify(data.data) + data.timestamp + this.options('secretkey');
+			}
+			data.mac = sha256(mcontent);
+			formOptions = postParamData(data);
 		} else {
+			let mcontent = '';
+			var keys = Object.keys(params);
+
+			keys.map((k) => {
+				let v = params[k];
+				if (typeof v == 'object') {
+					mcontent += JSON.stringify(v);
+				} else mcontent += v;
+			});
+
+			params.oaid = this.options('oaid');
+			params.timestamp = timestamp;
+
+			mcontent = params.oaid + mcontent + params.timestamp + this.options('secretkey');
+			params.mac = sha256(mcontent);
 			url += stringifyParams(params);
 		}
 
 		requestOptions = {
 			method,
 			url,
-			form: formOptions,
 			headers: {}
 		};
+
+		if (isMultipart) {
+			requestOptions['headers']['content-type'] = 'multipart/form-data';
+			requestOptions.formData = formOptions;
+		} else requestOptions.form = formOptions;
 
 		if (this.options('proxy')) {
 			requestOptions['proxy'] = this.options('proxy');
@@ -183,6 +279,8 @@ class ZaloSocial {
 			};
 		}
 		requestOptions['headers']['SDK-Source'] = ['NodeSDK', version].join('-');
+
+
 
 		_logger.debug('Request Options ' + JSON.stringify(requestOptions));
 
@@ -202,83 +300,6 @@ class ZaloSocial {
 			}
 			cb(json);
 		})
-	}
-
-	@autobind
-	getAccessToken() {
-		return this.options('accessToken');
-	}
-
-	@autobind
-	getAccessTokenByOauthCode(oauthCode, cb) {
-		let appId = this.options('appId');
-		let appSecret = this.options('appSecret');
-
-		if (!oauthCode) {
-			throw new Error('Oauth code required');
-		}
-		
-		if (!appId) {
-			throw new Error('appId required');
-		}
-
-		if (!appSecret) {
-			throw new Error('appSecret required');
-		}
-
-		if (cb == null || typeof cb !== 'function') {
-			cb = function(res) {
-				if (res != null && res.access_token) {
-					this.options({accessToken: res.access_token});
-				}
-			}
-		}
-
-		let url = `https://oauth.zaloapp.com/v3/access_token?app_id=${appId}&app_secret=${this.options('appSecret')}&code=${oauthCode}`;
-		let requestOptions = {
-			url: url,
-			method: 'GET',
-			headers: {
-				'SDK-Source': ['NodeSDK', version].join('-')
-			}
-		};
-		request(requestOptions, (error, response, body) => {
-			if (error !== null) return cb(error);
-
-			let json;
-			try {
-				json = JSON.parse(body);
-			} catch (ex) {
-				json = {
-					error: {
-						code: 'JSONPARSE',
-						Error: ex
-					}
-				};
-			}
-			cb(json);
-		})
-	}
-
-	@autobind
-	setAccessToken(accessToken) {
-		this.options({ accessToken });
-	}
-
-	@autobind
-	getLoginUrl(opt = {}) {
-		let appId = opt.appId || this.options('appId');
-		let redirectUri = opt.redirectUri || this.options('redirectUri');
-
-		if (!appId) {
-			throw new Error('appId required');
-		}
-
-		if (!redirectUri) {
-			throw new Error('redirectUri required');
-		}
-
-		return `https://oauth.zaloapp.com/v3/auth?app_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}`;
 	}
 
 	@autobind
@@ -302,6 +323,6 @@ class ZaloSocial {
 
 }
 
-export var ZS = new ZaloSocial();
-export default ZS;
-export { ZaloSocial, ZaloApiException, version };
+export var ZOA = new ZaloOA();
+export default ZOA;
+export { ZaloOA, ZaloApiException, version };

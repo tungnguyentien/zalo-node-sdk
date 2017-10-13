@@ -1,6 +1,6 @@
 node_modules/
 npm-debug.log
 /lib/
-
+test/
 .DS_Store
 Thumbs.db

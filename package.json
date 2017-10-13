@@ -1,8 +1,13 @@
 {
   "name": "zalo-sdk",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "NodeJS Library for Zalo",
   "main": "./lib/index.js",
+  "homepage": "https://github.com/tungnguyentien/zalo-sdk.git",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tungnguyentien/zalo-sdk.git"
+  },
   "scripts": {
     "lint": "eslint .",
     "build": "babel src/ -d lib/",
@@ -12,6 +17,7 @@
   },
   "keywords": [
     "zalo sdk",
+    "zalo sdk nodejs",
     "open api"
   ],
   "author": "tungnt",
@@ -21,7 +27,8 @@
     "babel-runtime": "^6.23.0",
     "core-decorators": "^0.17.0",
     "debug": "^2.6.3",
-    "request": "^2.81.0"
+    "request": "^2.81.0",
+    "sha256": "^0.2.0"
   },
   "devDependencies": {
     "babel-eslint": "^7.2.2",
@@ -36,7 +43,8 @@
     "lodash.omit": "^4.5.0",
     "mocha": "^3.2.0",
     "mocha-eslint": "^3.0.1",
-    "nock": "^9.0.13"
+    "nock": "^9.0.13",
+    "request-debug": "^0.2.0"
   },
   "engines": {
     "node": ">=4"
