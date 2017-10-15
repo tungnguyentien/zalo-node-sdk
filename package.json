@@ -1,12 +1,12 @@
 {
   "name": "zalo-sdk",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "NodeJS Library for Zalo",
   "main": "./lib/index.js",
-  "homepage": "https://github.com/tungnguyentien/zalo-sdk.git",
+  "homepage": "https://github.com/tungnguyentien/zalo-node-sdk",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tungnguyentien/zalo-sdk.git"
+    "url": "https://github.com/tungnguyentien/zalo-node-sdk"
   },
   "scripts": {
     "lint": "eslint .",
