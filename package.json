@@ -1,6 +1,6 @@
 {
   "name": "zalo-sdk",
-  "version": "2.0.2",
+  "version": "2.0.3",
   "description": "NodeJS Library for Zalo",
   "main": "./lib/index.js",
   "homepage": "https://github.com/tungnguyentien/zalo-node-sdk",
@@ -26,9 +26,9 @@
     "any-promise": "^1.3.0",
     "babel-runtime": "^6.23.0",
     "core-decorators": "^0.17.0",
+    "crypto": "^1.0.1",
     "debug": "^2.6.3",
-    "request": "^2.81.0",
-    "sha256": "^0.2.0"
+    "request": "^2.81.0"
   },
   "devDependencies": {
     "babel-eslint": "^7.2.2",

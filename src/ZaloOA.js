@@ -1,7 +1,7 @@
 'use strict';
 
 import request from 'request';
-import sha256 from 'sha256';
+import crypto from 'crypto';
 import { autobind } from 'core-decorators';
 import ZaloApiException from './ZaloApiException';
 import fs from 'fs';
@@ -235,7 +235,7 @@ class ZaloOA {
 				}
 				mcontent = data.oaid + JSON.stringify(data.data) + data.timestamp + this.options('secretkey');
 			}
-			data.mac = sha256(mcontent);
+			data.mac = crypto.createHash('sha256').update(mcontent,'utf8').digest('hex');
 			formOptions = postParamData(data);
 		} else {
 			let mcontent = '';
@@ -252,7 +252,7 @@ class ZaloOA {
 			params.timestamp = timestamp;
 
 			mcontent = params.oaid + mcontent + params.timestamp + this.options('secretkey');
-			params.mac = sha256(mcontent);
+			params.mac = crypto.createHash('sha256').update(mcontent,'utf8').digest('hex');
 			url += stringifyParams(params);
 		}
 
