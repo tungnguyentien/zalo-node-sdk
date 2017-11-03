@@ -28,6 +28,7 @@
     "core-decorators": "^0.17.0",
     "crypto": "^1.0.1",
     "debug": "^2.6.3",
+    "json-bigint": "^0.2.3",
     "request": "^2.81.0"
   },
   "devDependencies": {

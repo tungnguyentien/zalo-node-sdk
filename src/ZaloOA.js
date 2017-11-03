@@ -6,6 +6,7 @@ import { autobind } from 'core-decorators';
 import ZaloApiException from './ZaloApiException';
 import fs from 'fs';
 import stream from 'stream';
+var JSONbig = require('json-bigint')({"storeAsString": true});
 
 var { version } = require('../package.json'),
 	METHODS = ['GET', 'POST', 'DELETE', 'PUT'],
@@ -289,7 +290,7 @@ class ZaloOA {
 
 			let json;
 			try {
-				json = JSON.parse(body);
+				json = JSONbig.parse(body);
 			} catch (ex) {
 				json = {
 					error: {
